@@ -1,0 +1,33 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  azureServiceConnection: 'Cloudninja Azure-AzureNetwork-Blogpost'
+  resourceGroupName: 'rg-nsg-demo-001'
+  location: 'WestEurope'
+  templateFile: 'Deployments/main.bicep'
+
+steps:
+- task: AzureCLI@2
+  displayName: 'Validate NSG and route tables'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment sub validate --template-file $(templateFile) --location $(location)
+
+- task: AzureCLI@2
+  displayName: 'Deploy NSG and route tables'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment sub create --template-file $(templateFile) --location $(location)
