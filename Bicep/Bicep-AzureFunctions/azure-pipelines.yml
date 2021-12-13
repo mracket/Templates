@@ -1,0 +1,60 @@
+trigger:
+- master
+ 
+pool:
+  vmImage: ubuntu-latest
+ 
+variables:
+  azureServiceConnection: 'Cloudninja'
+  resourceGroupName: 'BicepDemo'
+  location: 'WestEurope'
+  templateFile: 'Deployments/main.bicep'
+ 
+steps:
+- task: AzureCLI@2
+  displayName: 'Validate resource group template'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment sub validate --location $(location) --template-file 'Deployments/main-resourceGroup.bicep'
+
+- task: AzureCLI@2
+  displayName: 'Deploy resource group template'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment sub create --location $(location) --template-file 'Deployments/main-resourceGroup.bicep'
+
+- task: AzureCLI@2
+  displayName: 'Validate main template'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment group validate --resource-group $(resourceGroupName) --template-file $(templateFile) 
+
+- task: AzureCLI@2
+  displayName: 'Deploy main template'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: az deployment group create --resource-group $(resourceGroupName) --template-file $(templateFile)
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(System.DefaultWorkingDirectory)/Functions'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
+
+- task: AzureFunctionApp@1
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    appType: 'functionApp'
+    appName: 'CloudninjaBicepFunctionApp'
+    package: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    deploymentMethod: 'auto'
